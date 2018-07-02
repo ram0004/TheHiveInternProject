@@ -29,6 +29,7 @@ import chardet
 import time, datetime
 import json
 import requests
+import xlrd
 import uuid
 import tempfile
 import re
@@ -220,6 +221,7 @@ def submitTheHive(message):
     observables = []
     body = ''
     for part in msg.walk():
+        print(part.get_content_type)
         print("HEEEREE", part.get_content_type())
         if part.get_content_type() == "text/plain":
             body = part.get_payload(decode=True).decode()
@@ -231,12 +233,10 @@ def submitTheHive(message):
             html = part.get_payload(decode=True).decode()
             observables = searchObservables(html, observables)
         elif part.get_content_type() == "application/vnd.ms-excel": #ONLY WORKS FOR .CSV
-            print("EXCEL SHEET??")
             body = part.get_payload(decode=True).decode('UTF-8')
             print(body)
             observables = searchObservables(body, observables)
-            print("Dad")
-            print(observables)            
+            print(observables)
         else:
             # Extract MIME parts
             filename = part.get_filename()
@@ -303,7 +303,6 @@ def submitTheHive(message):
             return False
 
     else:
-        print("BIGTEST")
         # Prepare the sample case
         tasks = []
         for task in config['caseTasks']:
@@ -332,12 +331,12 @@ def submitTheHive(message):
                 z = d.search(x)
                 tempVar = m.search(x)
                 searchVar = z.group(1)
-                finalTempVar = tempVar.group(1)
+                tempVar = tempVar.group(1)
                 
                 
                 if searchVar in subjectField:
                     print(x) #if 2 template names in subject, take the latest defined
-                    temptouse = finalTempVar
+                    temptouse = tempVar
                 
                 if searchVar == "Update":
                     api.update_case("132123", "[]")
@@ -346,7 +345,7 @@ def submitTheHive(message):
                 
             try:
                 case = Case(title=subjectField,
-                        tlp="", #setting it blank since custom template allows default color, set it back to tlp = int for conf value
+                        tlp=None, #setting it blank since custom template allows default color, set it back to tlp = int for conf value
                         flag=False,
                         tags=config['caseTags'],
                         description=body,
@@ -450,8 +449,6 @@ def readMail(mbox):
 
 
 def main():
-    print("test")
-    my_str = "hello world"
     global args
     global config
     global whitelistsm
@@ -485,7 +482,7 @@ def main():
     except OSError as e:
         print('[ERROR] Cannot read config file %s: %s' % (args.configFile, e.errno))
         sys.exit(1)
-
+    '''
     # IMAP Config
     config['imapHost'] = c.get('imap', 'host')
     if c.has_option('imap', 'port'):
@@ -497,7 +494,20 @@ def main():
         value = c.get('imap', 'expunge')
         if value == '1' or value == 'true' or value == 'yes':
             config['imapExpunge'] = True #if expunge in conf == yes, files will be deleted 
+    '''
+    # IMAP2 Config
+    config['imapHost'] = c.get('imap2', 'host')
+    if c.has_option('imap2', 'port'):
+        config['imapPort'] = int(c.get('imap2', 'port'))
+    config['imapUser'] = c.get('imap2', 'user')
+    config['imapPassword'] = c.get('imap2', 'password')
+    config['imapFolder'] = c.get('imap2', 'folder')
+    if c.has_option('imap2', 'expunge'):
+        value = c.get('imap2', 'expunge')
+        if value == '1' or value == 'true' or value == 'yes':
+            config['imapExpunge'] = True #if expunge in conf == yes, files will be deleted
 
+    '''            
     # TheHive Config
     config['thehiveURL'] = c.get('thehive', 'url')
     config['thehiveUser'] = c.get('thehive', 'user')
@@ -508,6 +518,18 @@ def main():
             config['thehiveObservables'] = True
     if c.has_option('thehive', 'whitelists'):
         config['thehiveWhitelists'] = c.get('thehive', 'whitelists')
+    '''
+
+    # TheHive2 Config
+    config['thehiveURL'] = c.get('thehive2', 'url')
+    config['thehiveUser'] = c.get('thehive2', 'user')
+    config['thehivePassword'] = c.get('thehive2', 'password')
+    if c.has_option('thehive2', 'observables'):
+        value = c.get('thehive2', 'observables')
+        if value == '1' or value == 'true' or value == 'yes':
+            config['thehiveObservables'] = True
+    if c.has_option('thehive2', 'whitelists'):
+        config['thehiveWhitelists'] = c.get('thehive2', 'whitelists')
 
     # New case config
     config['caseTLP'] = c.get('case', 'tlp')
