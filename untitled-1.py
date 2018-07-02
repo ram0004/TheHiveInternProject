@@ -10,7 +10,6 @@
 # Add observables
 # Update case emails
 # Support for custom field templates
-# Custom labeling for observables
 #
 
 from __future__ import print_function
@@ -220,11 +219,11 @@ def submitTheHive(message):
     attachments = []
     observables = []
     body = ''
+    bodyMessage = ''
     for part in msg.walk():
-        print(part.get_content_type)
-        print("HEEEREE", part.get_content_type())
         if part.get_content_type() == "text/plain":
             body = part.get_payload(decode=True).decode()
+            bodyMessage+= body
             observables = searchObservables(body, observables)  # searches the body of the email for supplied observables
             print(observables)
         elif part.get_content_type() == "text/html":    # if email is html based will search throuh html source code
@@ -234,9 +233,7 @@ def submitTheHive(message):
             observables = searchObservables(html, observables)
         elif part.get_content_type() == "application/vnd.ms-excel": #ONLY WORKS FOR .CSV
             body = part.get_payload(decode=True).decode('UTF-8')
-            print(body)
             observables = searchObservables(body, observables)
-            print(observables)
         else:
             # Extract MIME parts
             filename = part.get_filename()
@@ -262,7 +259,6 @@ def submitTheHive(message):
 
     # if '[ALERT]' in subjectField:
     if re.match(config['alertKeywords'], subjectField, flags=0):
-        print("REMATCHHERE")
         #
         # Add observables found in the mail body
         #
@@ -320,19 +316,16 @@ def submitTheHive(message):
         if len(config['caseTemplate']) > 0:
             templates = []
             for task in config['caseTemplates']:
-                print(task)
-                print("m loop")
                 templates.append(task)
-            print("end")
             temptouse = config['caseTemplate']
-            d = re.compile('-"(.+)"')
-            m = re.compile('(.+)-"')
+            descrip = re.compile('-"(.+)"')
+            name = re.compile('(.+)-"')
             for x in templates:
-                z = d.search(x)
-                tempVar = m.search(x)
+                z = descrip.search(x)
+                tempVar = name.search(x)
                 searchVar = z.group(1)
                 tempVar = tempVar.group(1)
-                
+
                 
                 if searchVar in subjectField:
                     print(x) #if 2 template names in subject, take the latest defined
@@ -340,19 +333,30 @@ def submitTheHive(message):
                 
                 if searchVar == "Update":
                     api.update_case("132123", "[]")
-        
-            
+                caseTags = []
+                for tag in config['caseTags']:
+                    descripFound = descrip.search(tag)
+                    nameFound = name.search(tag)
+                    descripFound = descripFound.group(1)
+                    nameFound = nameFound.group(1)
+                    if descripFound == 'always':
+                        caseTags.append(nameFound)
+                    elif descripFound in bodyMessage:
+                        caseTags.append(nameFound)
+
+
                 
             try:
                 case = Case(title=subjectField,
                         tlp=None, #setting it blank since custom template allows default color, set it back to tlp = int for conf value
                         flag=False,
-                        tags=config['caseTags'],
+                        tags=caseTags,
                         description=body,
                         template=temptouse,
-                        customFields=customFields)
+                        customFields=customFields
+                            )
             except:
-                print("Error with creating case, wrong template name?")
+                print("Error with creating case, wrong template name or tags?")
         else:
             case = Case(title=subjectField,
                         tlp=int(config['caseTLP']),
@@ -396,7 +400,7 @@ def submitTheHive(message):
                         data=o['value'],
                         tlp=int(config['caseTLP']),
                         ioc=False,
-                        tags=config['caseTags'],
+                        tags=caseTags,  #switched to custom tags
                         message='Found in the email body'
                     )
                     response = api.create_case_observable(newID, observable)
@@ -542,7 +546,6 @@ def main():
     if c.has_option('case', 'files'):
         config['caseFiles'] = c.get('case', 'files').split(',')
     if c.has_option('case', 'templates'):
-        print("C HAS OPTION")
         config['caseTemplates'] = c.get('case', 'templates').split(',')
     
 
