@@ -330,9 +330,31 @@ def submitTheHive(message):
                 if searchVar in subjectField:
                     print(x) #if 2 template names in subject, take the latest defined
                     temptouse = tempVar
+            if body:
+                print("body")
+                try:
+                    albert = re.compile('Albert Incident #: (\d+)')
+                    m = albert.search(body)
+                    albertId = m.group(1)
+                    print(albertId)
+                    customFields = CustomFieldHelper() \
+                        .add_string('from', fromField) \
+                        .add_string('attachment', str(attachments)) \
+                        .add_string('albertId', albertId) \
+                        .build()                    
+                    print(customFields)
+                except:
+                    print("albert id doesnt exist")
+                    
+                    
+                     
                 
-                if searchVar == "Update":
-                    api.update_case("132123", "[]")
+                if "Update" in subjectField:
+                    print("UPDATE")
+                    m = api.get_case("32")
+                    print("upd2")
+                    #print(m)
+                    #api.update_case(m, "[]")
                 caseTags = []
                 for tag in config['caseTags']:
                     descripFound = descrip.search(tag)
@@ -355,6 +377,7 @@ def submitTheHive(message):
                         template=temptouse,
                         customFields=customFields
                             )
+                #print(case.id)
             except:
                 print("Error with creating case, wrong template name or tags?")
         else:
@@ -486,7 +509,7 @@ def main():
     except OSError as e:
         print('[ERROR] Cannot read config file %s: %s' % (args.configFile, e.errno))
         sys.exit(1)
-    '''
+    
     # IMAP Config
     config['imapHost'] = c.get('imap', 'host')
     if c.has_option('imap', 'port'):
@@ -498,8 +521,9 @@ def main():
         value = c.get('imap', 'expunge')
         if value == '1' or value == 'true' or value == 'yes':
             config['imapExpunge'] = True #if expunge in conf == yes, files will be deleted 
-    '''
+    
     # IMAP2 Config
+    '''
     config['imapHost'] = c.get('imap2', 'host')
     if c.has_option('imap2', 'port'):
         config['imapPort'] = int(c.get('imap2', 'port'))
@@ -534,7 +558,7 @@ def main():
             config['thehiveObservables'] = True
     if c.has_option('thehive2', 'whitelists'):
         config['thehiveWhitelists'] = c.get('thehive2', 'whitelists')
-
+'''
     # New case config
     config['caseTLP'] = c.get('case', 'tlp')
     config['caseTags'] = c.get('case', 'tags').split(',')
