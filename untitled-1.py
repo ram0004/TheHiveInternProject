@@ -349,9 +349,54 @@ def submitTheHive(message):
                      
                 
                 if "Update" in subjectField:
-                    m = api.get_case("32")
-                    #print(m)
-                    #api.update_case(m, "[]")
+                    print("UPDATE")
+                    
+                    
+                    #INTIAL
+                    findBodyInfo = re.compile('---((?:.+[\r\n]+)+)---')
+                    m = findBodyInfo.search(body)                    
+                    bigGroup = m.group(1)
+                    caseId = parseBody("Case Id", bigGroup)
+                    print("caseid", caseId)
+                    resolved = parseBody("Resolved", bigGroup)
+                    resolved = resolved.lower()
+                    Tags = parseBody("Tags", bigGroup)
+                    Title = parseBody("Title", bigGroup)
+                    TLP = parseBody("TLP", bigGroup)
+                    Description = parseBody("Description", bigGroup)
+                    AlbertID = parseBody("Albert Id", bigGroup)
+                    Severity = parseBody("Severity", bigGroup)
+                    if resolved == "yes":
+                        resolvedStatus = parseBody("Resolution Status", bigGroup)
+                        ImpactStatus = parseBody("Impact Status", bigGroup)
+                        Summary = parseBody("Summary", bigGroup)
+                    
+                    
+                    caseId = 2
+                    query = Eq('caseId', caseId)
+                    try:
+                        d = api.find_first(query=query)
+                 
+                        for key, value in d.items() :
+                            if key == "_routing":
+                                requestCase = value
+                                  
+                    except:
+                        print("unable to find")
+                    
+                 
+                    try:
+                        updated_case = api.case.update(requestCase,
+                                                       status='Resolved',
+                                                       resolutionStatus='TruePositive',
+                                                       impactStatus='NoImpact',
+                                                       summary='closed by api',
+                                                       tags=['test'])
+                    
+                        # Print the details of the updated case
+                        print(updated_case.jsonify())
+                    except CaseException as e:
+                        print("Error updating case. {}".format(e))                           
                 caseTags = []
                 for tag in config['caseTags']:
                     descripFound = descrip.search(tag)
@@ -435,7 +480,20 @@ def submitTheHive(message):
             return False
     return True
 
-
+def parseBody(string, bigGroup):
+    string = string + ":"
+    if re.search(string, bigGroup, re.IGNORECASE):
+        tempGroup = bigGroup
+        x = re.split(string, tempGroup, flags=re.IGNORECASE)
+        d = re.split("\n", x[1])
+        value = d[0]
+        print("value", d)
+        
+        value = value.replace(" ", "")
+        
+        return value
+    else:
+        return None
 def readMail(mbox):
     '''
     Search for unread email in the specific folder
