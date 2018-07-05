@@ -334,9 +334,8 @@ def submitTheHive(message):
                 print("body")
                 try:
                     albert = re.compile('Albert Incident #: (\d+)')
-                    m = albert.search(body)
-                    albertId = m.group(1)
-                    print(albertId)
+                    albertId = albert.search(body)
+                    albertId = albertId.group(1)
                     customFields = CustomFieldHelper() \
                         .add_string('from', fromField) \
                         .add_string('attachment', str(attachments)) \
@@ -350,9 +349,7 @@ def submitTheHive(message):
                      
                 
                 if "Update" in subjectField:
-                    print("UPDATE")
                     m = api.get_case("32")
-                    print("upd2")
                     #print(m)
                     #api.update_case(m, "[]")
                 caseTags = []
