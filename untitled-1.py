@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
+from thehive4py.query import *
 from email.message import Message
 from email.header import Header
 import argparse
@@ -331,11 +332,13 @@ def submitTheHive(message):
                     print(x) #if 2 template names in subject, take the latest defined
                     temptouse = tempVar
             if body:
+                testerVar = False
                 print("body")
                 try:
                     albert = re.compile('Albert Incident #: (\d+)')
-                    albertId = albert.search(body)
-                    albertId = albertId.group(1)
+                    m = albert.search(body)
+                    albertId = m.group(1)
+                    print(albertId)
                     customFields = CustomFieldHelper() \
                         .add_string('from', fromField) \
                         .add_string('attachment', str(attachments)) \
@@ -345,10 +348,9 @@ def submitTheHive(message):
                 except:
                     print("albert id doesnt exist")
                     
-                    
-                     
                 
-                if "Update" in subjectField:
+                if "Update" or "update" in subjectField: #update code
+                    testerVar = True
                     print("UPDATE")
                     
                     
@@ -356,6 +358,8 @@ def submitTheHive(message):
                     findBodyInfo = re.compile('---((?:.+[\r\n]+)+)---')
                     m = findBodyInfo.search(body)                    
                     bigGroup = m.group(1)
+                    
+                    
                     caseId = parseBody("Case Id", bigGroup)
                     print("caseid", caseId)
                     resolved = parseBody("Resolved", bigGroup)
@@ -366,13 +370,24 @@ def submitTheHive(message):
                     Description = parseBody("Description", bigGroup)
                     AlbertID = parseBody("Albert Id", bigGroup)
                     Severity = parseBody("Severity", bigGroup)
-                    if resolved == "yes":
+                    ReplaceTags = parseBody("ReplaceTags", bigGroup)
+                    print("Email albert:",  AlbertID)
+                    print("email sev:", Severity)
+                    if "yes" in resolved:
                         resolvedStatus = parseBody("Resolution Status", bigGroup)
                         ImpactStatus = parseBody("Impact Status", bigGroup)
                         Summary = parseBody("Summary", bigGroup)
                     
                     
-                    caseId = 2
+                
+                    try:
+                        caseId = int(caseId)
+
+                        if "yes" in resolved:
+                            print("yes")
+                    except:
+                        print("invalid case id")
+                        
                     query = Eq('caseId', caseId)
                     try:
                         d = api.find_first(query=query)
@@ -386,17 +401,57 @@ def submitTheHive(message):
                     
                  
                     try:
-                        updated_case = api.case.update(requestCase,
-                                                       status='Resolved',
-                                                       resolutionStatus='TruePositive',
-                                                       impactStatus='NoImpact',
-                                                       summary='closed by api',
-                                                       tags=['test'])
-                    
-                        # Print the details of the updated case
-                        print(updated_case.jsonify())
-                    except CaseException as e:
-                        print("Error updating case. {}".format(e))                           
+                        if "yes" in resolved:
+                           
+                            
+                            
+
+                            updated_case = api.case.update(requestCase)
+                            
+                            print(updated_case.jsonify())
+                            updated_case.title = Title
+                            updated_case.description = Description
+                            print("TAGS HERE")
+                            print(Tags)
+                            if len(Tags) > 1:
+                                newTags = Tags.split(",")
+                                updated_case.tags = newTags
+                            
+                            
+                            #updated_case.tlp = TLP
+                            #updated_case.Severity = Severity
+                            if "yes" in resolved:
+                                print("summary", Summary)
+                                print("sev", Severity)
+                                print("resolved", resolvedStatus)
+                                print("impact", ImpactStatus)
+                                updated_case.resolutionStatus='TruePositive'
+                                #updated_case.impactStatus = ImpactStatus
+                                updated_case.summary = Summary
+                                updated_case.status = "Resolved"
+                                #overwrite albert id
+                                if len(AlbertID) > 1:
+                                    customFields = CustomFieldHelper() \
+                                        .add_string('from', fromField) \
+                                        .add_string('attachment', str(attachments)) \
+                                        .add_string('albertId', AlbertID) \
+                                        .build()                    
+                                    print(customFields)
+                                    updated_case.customFields = customFields
+                                
+                                
+                            else:
+                                updated_case.status = "Open"
+                                
+                            api.update_case(updated_case)
+                            
+                    except FileExistsError as e:
+                        print("Error updating case. {}".format(e))
+                
+                
+                #end update code
+                
+                
                 caseTags = []
                 for tag in config['caseTags']:
                     descripFound = descrip.search(tag)
@@ -431,8 +486,13 @@ def submitTheHive(message):
                         tasks=tasks,
                         customFields=customFields)
 
-        # Create the case
+       
         id = None
+        if testerVar == True:
+            break;
+        
+        
+         # Create the case
         response = api.create_case(case)
         if response.status_code == 201:
             newID = response.json()['id']
@@ -447,6 +507,7 @@ def submitTheHive(message):
                                                 tags=config['caseTags'],
                                                 message='Found as email attachment'
                                                 )
+                    
                     response = api.create_case_observable(newID, observable)
                     if response.status_code == 201:
                         if args.verbose:
