@@ -15,12 +15,12 @@ Case ID: 91
 Resolved: No
 Resolution Status: Yes
 Impact Status: No
-Summary: Being Gay
+Summary: Summary
 Tags: test,test2,greenbag
-Title: RyanMearsSucks
+Title: Test Title
 TLP: 1
 Description: Snoopy
-Albert ID: 666
+Albert ID: 645
 Severity: 2
 ReplaceTags: No
 ---
